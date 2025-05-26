@@ -1,20 +1,19 @@
 import { render, screen } from '@testing-library/react';
 import user from '@testing-library/user-event';
-import type { Infer } from '@typeschema/main';
 import React from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
-import { typeschemaResolver } from '..';
+import { zodResolver } from '..';
 
 const USERNAME_REQUIRED_MESSAGE = 'username field is required';
 const PASSWORD_REQUIRED_MESSAGE = 'password field is required';
 
 const schema = z.object({
-  username: z.string().min(1, { message: USERNAME_REQUIRED_MESSAGE }),
-  password: z.string().min(1, { message: PASSWORD_REQUIRED_MESSAGE }),
+  username: z.string().nonempty({ message: USERNAME_REQUIRED_MESSAGE }),
+  password: z.string().nonempty({ message: PASSWORD_REQUIRED_MESSAGE }),
 });
 
-type FormData = Infer<typeof schema>;
+type FormData = z.infer<typeof schema>;
 
 interface Props {
   onSubmit: (data: FormData) => void;
@@ -22,7 +21,7 @@ interface Props {
 
 function TestComponent({ onSubmit }: Props) {
   const { register, handleSubmit } = useForm<FormData>({
-    resolver: typeschemaResolver(schema),
+    resolver: zodResolver(schema),
     shouldUseNativeValidation: true,
   });
 
@@ -37,7 +36,7 @@ function TestComponent({ onSubmit }: Props) {
   );
 }
 
-test("form's native validation with TypeSchema", async () => {
+test("form's native validation with Zod", async () => {
   const handleSubmit = vi.fn();
   render(<TestComponent onSubmit={handleSubmit} />);
 

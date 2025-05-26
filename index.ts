@@ -1,2 +1,2 @@
-export * from './typeschema';
+export * from './zod';
 export * from './types';

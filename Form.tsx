@@ -1,17 +1,16 @@
 import { render, screen } from '@testing-library/react';
 import user from '@testing-library/user-event';
-import type { Infer } from '@typeschema/main';
 import React from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
-import { typeschemaResolver } from '..';
+import { zodResolver } from '..';
 
 const schema = z.object({
-  username: z.string().min(1, { message: 'username field is required' }),
-  password: z.string().min(1, { message: 'password field is required' }),
+  username: z.string().nonempty({ message: 'username field is required' }),
+  password: z.string().nonempty({ message: 'password field is required' }),
 });
 
-type FormData = Infer<typeof schema> & { unusedProperty: string };
+type FormData = z.infer<typeof schema> & { unusedProperty: string };
 
 interface Props {
   onSubmit: (data: FormData) => void;
@@ -23,7 +22,7 @@ function TestComponent({ onSubmit }: Props) {
     handleSubmit,
     formState: { errors },
   } = useForm<FormData>({
-    resolver: typeschemaResolver(schema), // Useful to check TypeScript regressions
+    resolver: zodResolver(schema), // Useful to check TypeScript regressions
   });
 
   return (
@@ -39,7 +38,7 @@ function TestComponent({ onSubmit }: Props) {
   );
 }
 
-test("form's validation with TypeSchema and TypeScript's integration", async () => {
+test("form's validation with Zod and TypeScript's integration", async () => {
   const handleSubmit = vi.fn();
   render(<TestComponent onSubmit={handleSubmit} />);
 
