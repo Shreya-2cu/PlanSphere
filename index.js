@@ -1,302 +1,396 @@
 'use strict';
-const align = {
-    right: alignRight,
-    center: alignCenter
+
+const {
+  ArrayPrototypeForEach,
+  ArrayPrototypeIncludes,
+  ArrayPrototypeMap,
+  ArrayPrototypePush,
+  ArrayPrototypePushApply,
+  ArrayPrototypeShift,
+  ArrayPrototypeSlice,
+  ArrayPrototypeUnshiftApply,
+  ObjectEntries,
+  ObjectPrototypeHasOwnProperty: ObjectHasOwn,
+  StringPrototypeCharAt,
+  StringPrototypeIndexOf,
+  StringPrototypeSlice,
+  StringPrototypeStartsWith,
+} = require('./internal/primordials');
+
+const {
+  validateArray,
+  validateBoolean,
+  validateBooleanArray,
+  validateObject,
+  validateString,
+  validateStringArray,
+  validateUnion,
+} = require('./internal/validators');
+
+const {
+  kEmptyObject,
+} = require('./internal/util');
+
+const {
+  findLongOptionForShort,
+  isLoneLongOption,
+  isLoneShortOption,
+  isLongOptionAndValue,
+  isOptionValue,
+  isOptionLikeValue,
+  isShortOptionAndValue,
+  isShortOptionGroup,
+  useDefaultValueOption,
+  objectGetOwn,
+  optionsGetOwn,
+} = require('./utils');
+
+const {
+  codes: {
+    ERR_INVALID_ARG_VALUE,
+    ERR_PARSE_ARGS_INVALID_OPTION_VALUE,
+    ERR_PARSE_ARGS_UNKNOWN_OPTION,
+    ERR_PARSE_ARGS_UNEXPECTED_POSITIONAL,
+  },
+} = require('./internal/errors');
+
+function getMainArgs() {
+  // Work out where to slice process.argv for user supplied arguments.
+
+  // Check node options for scenarios where user CLI args follow executable.
+  const execArgv = process.execArgv;
+  if (ArrayPrototypeIncludes(execArgv, '-e') ||
+      ArrayPrototypeIncludes(execArgv, '--eval') ||
+      ArrayPrototypeIncludes(execArgv, '-p') ||
+      ArrayPrototypeIncludes(execArgv, '--print')) {
+    return ArrayPrototypeSlice(process.argv, 1);
+  }
+
+  // Normally first two arguments are executable and script, then CLI arguments
+  return ArrayPrototypeSlice(process.argv, 2);
+}
+
+/**
+ * In strict mode, throw for possible usage errors like --foo --bar
+ *
+ * @param {object} token - from tokens as available from parseArgs
+ */
+function checkOptionLikeValue(token) {
+  if (!token.inlineValue && isOptionLikeValue(token.value)) {
+    // Only show short example if user used short option.
+    const example = StringPrototypeStartsWith(token.rawName, '--') ?
+      `'${token.rawName}=-XYZ'` :
+      `'--${token.name}=-XYZ' or '${token.rawName}-XYZ'`;
+    const errorMessage = `Option '${token.rawName}' argument is ambiguous.
+Did you forget to specify the option argument for '${token.rawName}'?
+To specify an option argument starting with a dash use ${example}.`;
+    throw new ERR_PARSE_ARGS_INVALID_OPTION_VALUE(errorMessage);
+  }
+}
+
+/**
+ * In strict mode, throw for usage errors.
+ *
+ * @param {object} config - from config passed to parseArgs
+ * @param {object} token - from tokens as available from parseArgs
+ */
+function checkOptionUsage(config, token) {
+  if (!ObjectHasOwn(config.options, token.name)) {
+    throw new ERR_PARSE_ARGS_UNKNOWN_OPTION(
+      token.rawName, config.allowPositionals);
+  }
+
+  const short = optionsGetOwn(config.options, token.name, 'short');
+  const shortAndLong = `${short ? `-${short}, ` : ''}--${token.name}`;
+  const type = optionsGetOwn(config.options, token.name, 'type');
+  if (type === 'string' && typeof token.value !== 'string') {
+    throw new ERR_PARSE_ARGS_INVALID_OPTION_VALUE(`Option '${shortAndLong} <value>' argument missing`);
+  }
+  // (Idiomatic test for undefined||null, expecting undefined.)
+  if (type === 'boolean' && token.value != null) {
+    throw new ERR_PARSE_ARGS_INVALID_OPTION_VALUE(`Option '${shortAndLong}' does not take an argument`);
+  }
+}
+
+
+/**
+ * Store the option value in `values`.
+ *
+ * @param {string} longOption - long option name e.g. 'foo'
+ * @param {string|undefined} optionValue - value from user args
+ * @param {object} options - option configs, from parseArgs({ options })
+ * @param {object} values - option values returned in `values` by parseArgs
+ */
+function storeOption(longOption, optionValue, options, values) {
+  if (longOption === '__proto__') {
+    return; // No. Just no.
+  }
+
+  // We store based on the option value rather than option type,
+  // preserving the users intent for author to deal with.
+  const newValue = optionValue ?? true;
+  if (optionsGetOwn(options, longOption, 'multiple')) {
+    // Always store value in array, including for boolean.
+    // values[longOption] starts out not present,
+    // first value is added as new array [newValue],
+    // subsequent values are pushed to existing array.
+    // (note: values has null prototype, so simpler usage)
+    if (values[longOption]) {
+      ArrayPrototypePush(values[longOption], newValue);
+    } else {
+      values[longOption] = [newValue];
+    }
+  } else {
+    values[longOption] = newValue;
+  }
+}
+
+/**
+ * Store the default option value in `values`.
+ *
+ * @param {string} longOption - long option name e.g. 'foo'
+ * @param {string
+ *         | boolean
+ *         | string[]
+ *         | boolean[]} optionValue - default value from option config
+ * @param {object} values - option values returned in `values` by parseArgs
+ */
+function storeDefaultOption(longOption, optionValue, values) {
+  if (longOption === '__proto__') {
+    return; // No. Just no.
+  }
+
+  values[longOption] = optionValue;
+}
+
+/**
+ * Process args and turn into identified tokens:
+ * - option (along with value, if any)
+ * - positional
+ * - option-terminator
+ *
+ * @param {string[]} args - from parseArgs({ args }) or mainArgs
+ * @param {object} options - option configs, from parseArgs({ options })
+ */
+function argsToTokens(args, options) {
+  const tokens = [];
+  let index = -1;
+  let groupCount = 0;
+
+  const remainingArgs = ArrayPrototypeSlice(args);
+  while (remainingArgs.length > 0) {
+    const arg = ArrayPrototypeShift(remainingArgs);
+    const nextArg = remainingArgs[0];
+    if (groupCount > 0)
+      groupCount--;
+    else
+      index++;
+
+    // Check if `arg` is an options terminator.
+    // Guideline 10 in https://pubs.opengroup.org/onlinepubs/9699919799/basedefs/V1_chap12.html
+    if (arg === '--') {
+      // Everything after a bare '--' is considered a positional argument.
+      ArrayPrototypePush(tokens, { kind: 'option-terminator', index });
+      ArrayPrototypePushApply(
+        tokens, ArrayPrototypeMap(remainingArgs, (arg) => {
+          return { kind: 'positional', index: ++index, value: arg };
+        })
+      );
+      break; // Finished processing args, leave while loop.
+    }
+
+    if (isLoneShortOption(arg)) {
+      // e.g. '-f'
+      const shortOption = StringPrototypeCharAt(arg, 1);
+      const longOption = findLongOptionForShort(shortOption, options);
+      let value;
+      let inlineValue;
+      if (optionsGetOwn(options, longOption, 'type') === 'string' &&
+          isOptionValue(nextArg)) {
+        // e.g. '-f', 'bar'
+        value = ArrayPrototypeShift(remainingArgs);
+        inlineValue = false;
+      }
+      ArrayPrototypePush(
+        tokens,
+        { kind: 'option', name: longOption, rawName: arg,
+          index, value, inlineValue });
+      if (value != null) ++index;
+      continue;
+    }
+
+    if (isShortOptionGroup(arg, options)) {
+      // Expand -fXzy to -f -X -z -y
+      const expanded = [];
+      for (let index = 1; index < arg.length; index++) {
+        const shortOption = StringPrototypeCharAt(arg, index);
+        const longOption = findLongOptionForShort(shortOption, options);
+        if (optionsGetOwn(options, longOption, 'type') !== 'string' ||
+          index === arg.length - 1) {
+          // Boolean option, or last short in group. Well formed.
+          ArrayPrototypePush(expanded, `-${shortOption}`);
+        } else {
+          // String option in middle. Yuck.
+          // Expand -abfFILE to -a -b -fFILE
+          ArrayPrototypePush(expanded, `-${StringPrototypeSlice(arg, index)}`);
+          break; // finished short group
+        }
+      }
+      ArrayPrototypeUnshiftApply(remainingArgs, expanded);
+      groupCount = expanded.length;
+      continue;
+    }
+
+    if (isShortOptionAndValue(arg, options)) {
+      // e.g. -fFILE
+      const shortOption = StringPrototypeCharAt(arg, 1);
+      const longOption = findLongOptionForShort(shortOption, options);
+      const value = StringPrototypeSlice(arg, 2);
+      ArrayPrototypePush(
+        tokens,
+        { kind: 'option', name: longOption, rawName: `-${shortOption}`,
+          index, value, inlineValue: true });
+      continue;
+    }
+
+    if (isLoneLongOption(arg)) {
+      // e.g. '--foo'
+      const longOption = StringPrototypeSlice(arg, 2);
+      let value;
+      let inlineValue;
+      if (optionsGetOwn(options, longOption, 'type') === 'string' &&
+          isOptionValue(nextArg)) {
+        // e.g. '--foo', 'bar'
+        value = ArrayPrototypeShift(remainingArgs);
+        inlineValue = false;
+      }
+      ArrayPrototypePush(
+        tokens,
+        { kind: 'option', name: longOption, rawName: arg,
+          index, value, inlineValue });
+      if (value != null) ++index;
+      continue;
+    }
+
+    if (isLongOptionAndValue(arg)) {
+      // e.g. --foo=bar
+      const equalIndex = StringPrototypeIndexOf(arg, '=');
+      const longOption = StringPrototypeSlice(arg, 2, equalIndex);
+      const value = StringPrototypeSlice(arg, equalIndex + 1);
+      ArrayPrototypePush(
+        tokens,
+        { kind: 'option', name: longOption, rawName: `--${longOption}`,
+          index, value, inlineValue: true });
+      continue;
+    }
+
+    ArrayPrototypePush(tokens, { kind: 'positional', index, value: arg });
+  }
+
+  return tokens;
+}
+
+const parseArgs = (config = kEmptyObject) => {
+  const args = objectGetOwn(config, 'args') ?? getMainArgs();
+  const strict = objectGetOwn(config, 'strict') ?? true;
+  const allowPositionals = objectGetOwn(config, 'allowPositionals') ?? !strict;
+  const returnTokens = objectGetOwn(config, 'tokens') ?? false;
+  const options = objectGetOwn(config, 'options') ?? { __proto__: null };
+  // Bundle these up for passing to strict-mode checks.
+  const parseConfig = { args, strict, options, allowPositionals };
+
+  // Validate input configuration.
+  validateArray(args, 'args');
+  validateBoolean(strict, 'strict');
+  validateBoolean(allowPositionals, 'allowPositionals');
+  validateBoolean(returnTokens, 'tokens');
+  validateObject(options, 'options');
+  ArrayPrototypeForEach(
+    ObjectEntries(options),
+    ({ 0: longOption, 1: optionConfig }) => {
+      validateObject(optionConfig, `options.${longOption}`);
+
+      // type is required
+      const optionType = objectGetOwn(optionConfig, 'type');
+      validateUnion(optionType, `options.${longOption}.type`, ['string', 'boolean']);
+
+      if (ObjectHasOwn(optionConfig, 'short')) {
+        const shortOption = optionConfig.short;
+        validateString(shortOption, `options.${longOption}.short`);
+        if (shortOption.length !== 1) {
+          throw new ERR_INVALID_ARG_VALUE(
+            `options.${longOption}.short`,
+            shortOption,
+            'must be a single character'
+          );
+        }
+      }
+
+      const multipleOption = objectGetOwn(optionConfig, 'multiple');
+      if (ObjectHasOwn(optionConfig, 'multiple')) {
+        validateBoolean(multipleOption, `options.${longOption}.multiple`);
+      }
+
+      const defaultValue = objectGetOwn(optionConfig, 'default');
+      if (defaultValue !== undefined) {
+        let validator;
+        switch (optionType) {
+          case 'string':
+            validator = multipleOption ? validateStringArray : validateString;
+            break;
+
+          case 'boolean':
+            validator = multipleOption ? validateBooleanArray : validateBoolean;
+            break;
+        }
+        validator(defaultValue, `options.${longOption}.default`);
+      }
+    }
+  );
+
+  // Phase 1: identify tokens
+  const tokens = argsToTokens(args, options);
+
+  // Phase 2: process tokens into parsed option values and positionals
+  const result = {
+    values: { __proto__: null },
+    positionals: [],
+  };
+  if (returnTokens) {
+    result.tokens = tokens;
+  }
+  ArrayPrototypeForEach(tokens, (token) => {
+    if (token.kind === 'option') {
+      if (strict) {
+        checkOptionUsage(parseConfig, token);
+        checkOptionLikeValue(token);
+      }
+      storeOption(token.name, token.value, options, result.values);
+    } else if (token.kind === 'positional') {
+      if (!allowPositionals) {
+        throw new ERR_PARSE_ARGS_UNEXPECTED_POSITIONAL(token.value);
+      }
+      ArrayPrototypePush(result.positionals, token.value);
+    }
+  });
+
+  // Phase 3: fill in default values for missing args
+  ArrayPrototypeForEach(ObjectEntries(options), ({ 0: longOption,
+                                                   1: optionConfig }) => {
+    const mustSetDefault = useDefaultValueOption(longOption,
+                                                 optionConfig,
+                                                 result.values);
+    if (mustSetDefault) {
+      storeDefaultOption(longOption,
+                         objectGetOwn(optionConfig, 'default'),
+                         result.values);
+    }
+  });
+
+
+  return result;
 };
-const top = 0;
-const right = 1;
-const bottom = 2;
-const left = 3;
-export class UI {
-    constructor(opts) {
-        var _a;
-        this.width = opts.width;
-        /* c8 ignore start */
-        this.wrap = (_a = opts.wrap) !== null && _a !== void 0 ? _a : true;
-        /* c8 ignore stop */
-        this.rows = [];
-    }
-    span(...args) {
-        const cols = this.div(...args);
-        cols.span = true;
-    }
-    resetOutput() {
-        this.rows = [];
-    }
-    div(...args) {
-        if (args.length === 0) {
-            this.div('');
-        }
-        if (this.wrap && this.shouldApplyLayoutDSL(...args) && typeof args[0] === 'string') {
-            return this.applyLayoutDSL(args[0]);
-        }
-        const cols = args.map(arg => {
-            if (typeof arg === 'string') {
-                return this.colFromString(arg);
-            }
-            return arg;
-        });
-        this.rows.push(cols);
-        return cols;
-    }
-    shouldApplyLayoutDSL(...args) {
-        return args.length === 1 && typeof args[0] === 'string' &&
-            /[\t\n]/.test(args[0]);
-    }
-    applyLayoutDSL(str) {
-        const rows = str.split('\n').map(row => row.split('\t'));
-        let leftColumnWidth = 0;
-        // simple heuristic for layout, make sure the
-        // second column lines up along the left-hand.
-        // don't allow the first column to take up more
-        // than 50% of the screen.
-        rows.forEach(columns => {
-            if (columns.length > 1 && mixin.stringWidth(columns[0]) > leftColumnWidth) {
-                leftColumnWidth = Math.min(Math.floor(this.width * 0.5), mixin.stringWidth(columns[0]));
-            }
-        });
-        // generate a table:
-        //  replacing ' ' with padding calculations.
-        //  using the algorithmically generated width.
-        rows.forEach(columns => {
-            this.div(...columns.map((r, i) => {
-                return {
-                    text: r.trim(),
-                    padding: this.measurePadding(r),
-                    width: (i === 0 && columns.length > 1) ? leftColumnWidth : undefined
-                };
-            }));
-        });
-        return this.rows[this.rows.length - 1];
-    }
-    colFromString(text) {
-        return {
-            text,
-            padding: this.measurePadding(text)
-        };
-    }
-    measurePadding(str) {
-        // measure padding without ansi escape codes
-        const noAnsi = mixin.stripAnsi(str);
-        return [0, noAnsi.match(/\s*$/)[0].length, 0, noAnsi.match(/^\s*/)[0].length];
-    }
-    toString() {
-        const lines = [];
-        this.rows.forEach(row => {
-            this.rowToString(row, lines);
-        });
-        // don't display any lines with the
-        // hidden flag set.
-        return lines
-            .filter(line => !line.hidden)
-            .map(line => line.text)
-            .join('\n');
-    }
-    rowToString(row, lines) {
-        this.rasterize(row).forEach((rrow, r) => {
-            let str = '';
-            rrow.forEach((col, c) => {
-                const { width } = row[c]; // the width with padding.
-                const wrapWidth = this.negatePadding(row[c]); // the width without padding.
-                let ts = col; // temporary string used during alignment/padding.
-                if (wrapWidth > mixin.stringWidth(col)) {
-                    ts += ' '.repeat(wrapWidth - mixin.stringWidth(col));
-                }
-                // align the string within its column.
-                if (row[c].align && row[c].align !== 'left' && this.wrap) {
-                    const fn = align[row[c].align];
-                    ts = fn(ts, wrapWidth);
-                    if (mixin.stringWidth(ts) < wrapWidth) {
-                        /* c8 ignore start */
-                        const w = width || 0;
-                        /* c8 ignore stop */
-                        ts += ' '.repeat(w - mixin.stringWidth(ts) - 1);
-                    }
-                }
-                // apply border and padding to string.
-                const padding = row[c].padding || [0, 0, 0, 0];
-                if (padding[left]) {
-                    str += ' '.repeat(padding[left]);
-                }
-                str += addBorder(row[c], ts, '| ');
-                str += ts;
-                str += addBorder(row[c], ts, ' |');
-                if (padding[right]) {
-                    str += ' '.repeat(padding[right]);
-                }
-                // if prior row is span, try to render the
-                // current row on the prior line.
-                if (r === 0 && lines.length > 0) {
-                    str = this.renderInline(str, lines[lines.length - 1]);
-                }
-            });
-            // remove trailing whitespace.
-            lines.push({
-                text: str.replace(/ +$/, ''),
-                span: row.span
-            });
-        });
-        return lines;
-    }
-    // if the full 'source' can render in
-    // the target line, do so.
-    renderInline(source, previousLine) {
-        const match = source.match(/^ */);
-        /* c8 ignore start */
-        const leadingWhitespace = match ? match[0].length : 0;
-        /* c8 ignore stop */
-        const target = previousLine.text;
-        const targetTextWidth = mixin.stringWidth(target.trimEnd());
-        if (!previousLine.span) {
-            return source;
-        }
-        // if we're not applying wrapping logic,
-        // just always append to the span.
-        if (!this.wrap) {
-            previousLine.hidden = true;
-            return target + source;
-        }
-        if (leadingWhitespace < targetTextWidth) {
-            return source;
-        }
-        previousLine.hidden = true;
-        return target.trimEnd() + ' '.repeat(leadingWhitespace - targetTextWidth) + source.trimStart();
-    }
-    rasterize(row) {
-        const rrows = [];
-        const widths = this.columnWidths(row);
-        let wrapped;
-        // word wrap all columns, and create
-        // a data-structure that is easy to rasterize.
-        row.forEach((col, c) => {
-            // leave room for left and right padding.
-            col.width = widths[c];
-            if (this.wrap) {
-                wrapped = mixin.wrap(col.text, this.negatePadding(col), { hard: true }).split('\n');
-            }
-            else {
-                wrapped = col.text.split('\n');
-            }
-            if (col.border) {
-                wrapped.unshift('.' + '-'.repeat(this.negatePadding(col) + 2) + '.');
-                wrapped.push("'" + '-'.repeat(this.negatePadding(col) + 2) + "'");
-            }
-            // add top and bottom padding.
-            if (col.padding) {
-                wrapped.unshift(...new Array(col.padding[top] || 0).fill(''));
-                wrapped.push(...new Array(col.padding[bottom] || 0).fill(''));
-            }
-            wrapped.forEach((str, r) => {
-                if (!rrows[r]) {
-                    rrows.push([]);
-                }
-                const rrow = rrows[r];
-                for (let i = 0; i < c; i++) {
-                    if (rrow[i] === undefined) {
-                        rrow.push('');
-                    }
-                }
-                rrow.push(str);
-            });
-        });
-        return rrows;
-    }
-    negatePadding(col) {
-        /* c8 ignore start */
-        let wrapWidth = col.width || 0;
-        /* c8 ignore stop */
-        if (col.padding) {
-            wrapWidth -= (col.padding[left] || 0) + (col.padding[right] || 0);
-        }
-        if (col.border) {
-            wrapWidth -= 4;
-        }
-        return wrapWidth;
-    }
-    columnWidths(row) {
-        if (!this.wrap) {
-            return row.map(col => {
-                return col.width || mixin.stringWidth(col.text);
-            });
-        }
-        let unset = row.length;
-        let remainingWidth = this.width;
-        // column widths can be set in config.
-        const widths = row.map(col => {
-            if (col.width) {
-                unset--;
-                remainingWidth -= col.width;
-                return col.width;
-            }
-            return undefined;
-        });
-        // any unset widths should be calculated.
-        /* c8 ignore start */
-        const unsetWidth = unset ? Math.floor(remainingWidth / unset) : 0;
-        /* c8 ignore stop */
-        return widths.map((w, i) => {
-            if (w === undefined) {
-                return Math.max(unsetWidth, _minWidth(row[i]));
-            }
-            return w;
-        });
-    }
-}
-function addBorder(col, ts, style) {
-    if (col.border) {
-        if (/[.']-+[.']/.test(ts)) {
-            return '';
-        }
-        if (ts.trim().length !== 0) {
-            return style;
-        }
-        return '  ';
-    }
-    return '';
-}
-// calculates the minimum width of
-// a column, based on padding preferences.
-function _minWidth(col) {
-    const padding = col.padding || [];
-    const minWidth = 1 + (padding[left] || 0) + (padding[right] || 0);
-    if (col.border) {
-        return minWidth + 4;
-    }
-    return minWidth;
-}
-function getWindowWidth() {
-    /* c8 ignore start */
-    if (typeof process === 'object' && process.stdout && process.stdout.columns) {
-        return process.stdout.columns;
-    }
-    return 80;
-}
-/* c8 ignore stop */
-function alignRight(str, width) {
-    str = str.trim();
-    const strWidth = mixin.stringWidth(str);
-    if (strWidth < width) {
-        return ' '.repeat(width - strWidth) + str;
-    }
-    return str;
-}
-function alignCenter(str, width) {
-    str = str.trim();
-    const strWidth = mixin.stringWidth(str);
-    /* c8 ignore start */
-    if (strWidth >= width) {
-        return str;
-    }
-    /* c8 ignore stop */
-    return ' '.repeat((width - strWidth) >> 1) + str;
-}
-let mixin;
-export function cliui(opts, _mixin) {
-    mixin = _mixin;
-    return new UI({
-        /* c8 ignore start */
-        width: (opts === null || opts === void 0 ? void 0 : opts.width) || getWindowWidth(),
-        wrap: opts === null || opts === void 0 ? void 0 : opts.wrap
-        /* c8 ignore stop */
-    });
-}
+
+module.exports = {
+  parseArgs,
+};

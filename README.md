@@ -1,257 +1,413 @@
-# @jridgewell/trace-mapping
+<!-- omit in toc -->
+# parseArgs
 
-> Trace the original position through a source map
+[![Coverage][coverage-image]][coverage-url]
 
-`trace-mapping` allows you to take the line and column of an output file and trace it to the
-original location in the source file through a source map.
+Polyfill of `util.parseArgs()`
 
-You may already be familiar with the [`source-map`][source-map] package's `SourceMapConsumer`. This
-provides the same `originalPositionFor` and `generatedPositionFor` API, without requiring WASM.
+## `util.parseArgs([config])`
 
-## Installation
+<!-- YAML
+added: v18.3.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/43459
+    description: add support for returning detailed parse information
+                 using `tokens` in input `config` and returned properties.
+-->
 
-```sh
-npm install @jridgewell/trace-mapping
+> Stability: 1 - Experimental
+
+* `config` {Object} Used to provide arguments for parsing and to configure
+  the parser. `config` supports the following properties:
+  * `args` {string\[]} array of argument strings. **Default:** `process.argv`
+    with `execPath` and `filename` removed.
+  * `options` {Object} Used to describe arguments known to the parser.
+    Keys of `options` are the long names of options and values are an
+    {Object} accepting the following properties:
+    * `type` {string} Type of argument, which must be either `boolean` or `string`.
+    * `multiple` {boolean} Whether this option can be provided multiple
+      times. If `true`, all values will be collected in an array. If
+      `false`, values for the option are last-wins. **Default:** `false`.
+    * `short` {string} A single character alias for the option.
+    * `default` {string | boolean | string\[] | boolean\[]} The default option
+      value when it is not set by args. It must be of the same type as the
+      the `type` property. When `multiple` is `true`, it must be an array.
+  * `strict` {boolean} Should an error be thrown when unknown arguments
+    are encountered, or when arguments are passed that do not match the
+    `type` configured in `options`.
+    **Default:** `true`.
+  * `allowPositionals` {boolean} Whether this command accepts positional
+    arguments.
+    **Default:** `false` if `strict` is `true`, otherwise `true`.
+  * `tokens` {boolean} Return the parsed tokens. This is useful for extending
+    the built-in behavior, from adding additional checks through to reprocessing
+    the tokens in different ways.
+    **Default:** `false`.
+
+* Returns: {Object} The parsed command line arguments:
+  * `values` {Object} A mapping of parsed option names with their {string}
+    or {boolean} values.
+  * `positionals` {string\[]} Positional arguments.
+  * `tokens` {Object\[] | undefined} See [parseArgs tokens](#parseargs-tokens)
+    section. Only returned if `config` includes `tokens: true`.
+
+Provides a higher level API for command-line argument parsing than interacting
+with `process.argv` directly. Takes a specification for the expected arguments
+and returns a structured object with the parsed options and positionals.
+
+```mjs
+import { parseArgs } from 'node:util';
+const args = ['-f', '--bar', 'b'];
+const options = {
+  foo: {
+    type: 'boolean',
+    short: 'f'
+  },
+  bar: {
+    type: 'string'
+  }
+};
+const {
+  values,
+  positionals
+} = parseArgs({ args, options });
+console.log(values, positionals);
+// Prints: [Object: null prototype] { foo: true, bar: 'b' } []
 ```
 
-## Usage
-
-```typescript
-import {
-  TraceMap,
-  originalPositionFor,
-  generatedPositionFor,
-  sourceContentFor,
-  isIgnored,
-} from '@jridgewell/trace-mapping';
-
-const tracer = new TraceMap({
-  version: 3,
-  sources: ['input.js'],
-  sourcesContent: ['content of input.js'],
-  names: ['foo'],
-  mappings: 'KAyCIA',
-  ignoreList: [],
-});
-
-// Lines start at line 1, columns at column 0.
-const traced = originalPositionFor(tracer, { line: 1, column: 5 });
-assert.deepEqual(traced, {
-  source: 'input.js',
-  line: 42,
-  column: 4,
-  name: 'foo',
-});
-
-const content = sourceContentFor(tracer, traced.source);
-assert.strictEqual(content, 'content for input.js');
-
-const generated = generatedPositionFor(tracer, {
-  source: 'input.js',
-  line: 42,
-  column: 4,
-});
-assert.deepEqual(generated, {
-  line: 1,
-  column: 5,
-});
-
-const ignored = isIgnored(tracer, 'input.js');
-assert.equal(ignored, false);
+```cjs
+const { parseArgs } = require('node:util');
+const args = ['-f', '--bar', 'b'];
+const options = {
+  foo: {
+    type: 'boolean',
+    short: 'f'
+  },
+  bar: {
+    type: 'string'
+  }
+};
+const {
+  values,
+  positionals
+} = parseArgs({ args, options });
+console.log(values, positionals);
+// Prints: [Object: null prototype] { foo: true, bar: 'b' } []
 ```
 
-We also provide a lower level API to get the actual segment that matches our line and column. Unlike
-`originalPositionFor`, `traceSegment` uses a 0-base for `line`:
+`util.parseArgs` is experimental and behavior may change. Join the
+conversation in [pkgjs/parseargs][] to contribute to the design.
 
-```typescript
-import { traceSegment } from '@jridgewell/trace-mapping';
+### `parseArgs` `tokens`
 
-// line is 0-base.
-const traced = traceSegment(tracer, /* line */ 0, /* column */ 5);
+Detailed parse information is available for adding custom behaviours by
+specifying `tokens: true` in the configuration.
+The returned tokens have properties describing:
 
-// Segments are [outputColumn, sourcesIndex, sourceLine, sourceColumn, namesIndex]
-// Again, line is 0-base and so is sourceLine
-assert.deepEqual(traced, [5, 0, 41, 4, 0]);
+* all tokens
+  * `kind` {string} One of 'option', 'positional', or 'option-terminator'.
+  * `index` {number} Index of element in `args` containing token. So the
+    source argument for a token is `args[token.index]`.
+* option tokens
+  * `name` {string} Long name of option.
+  * `rawName` {string} How option used in args, like `-f` of `--foo`.
+  * `value` {string | undefined} Option value specified in args.
+    Undefined for boolean options.
+  * `inlineValue` {boolean | undefined} Whether option value specified inline,
+    like `--foo=bar`.
+* positional tokens
+  * `value` {string} The value of the positional argument in args (i.e. `args[index]`).
+* option-terminator token
+
+The returned tokens are in the order encountered in the input args. Options
+that appear more than once in args produce a token for each use. Short option
+groups like `-xy` expand to a token for each option. So `-xxx` produces
+three tokens.
+
+For example to use the returned tokens to add support for a negated option
+like `--no-color`, the tokens can be reprocessed to change the value stored
+for the negated option.
+
+```mjs
+import { parseArgs } from 'node:util';
+
+const options = {
+  'color': { type: 'boolean' },
+  'no-color': { type: 'boolean' },
+  'logfile': { type: 'string' },
+  'no-logfile': { type: 'boolean' },
+};
+const { values, tokens } = parseArgs({ options, tokens: true });
+
+// Reprocess the option tokens and overwrite the returned values.
+tokens
+  .filter((token) => token.kind === 'option')
+  .forEach((token) => {
+    if (token.name.startsWith('no-')) {
+      // Store foo:false for --no-foo
+      const positiveName = token.name.slice(3);
+      values[positiveName] = false;
+      delete values[token.name];
+    } else {
+      // Resave value so last one wins if both --foo and --no-foo.
+      values[token.name] = token.value ?? true;
+    }
+  });
+
+const color = values.color;
+const logfile = values.logfile ?? 'default.log';
+
+console.log({ logfile, color });
 ```
 
-### SectionedSourceMaps
+```cjs
+const { parseArgs } = require('node:util');
 
-The sourcemap spec defines a special `sections` field that's designed to handle concatenation of
-output code with associated sourcemaps. This type of sourcemap is rarely used (no major build tool
-produces it), but if you are hand coding a concatenation you may need it. We provide an `AnyMap`
-helper that can receive either a regular sourcemap or a `SectionedSourceMap` and returns a
-`TraceMap` instance:
+const options = {
+  'color': { type: 'boolean' },
+  'no-color': { type: 'boolean' },
+  'logfile': { type: 'string' },
+  'no-logfile': { type: 'boolean' },
+};
+const { values, tokens } = parseArgs({ options, tokens: true });
 
-```typescript
-import { AnyMap } from '@jridgewell/trace-mapping';
-const fooOutput = 'foo';
-const barOutput = 'bar';
-const output = [fooOutput, barOutput].join('\n');
+// Reprocess the option tokens and overwrite the returned values.
+tokens
+  .filter((token) => token.kind === 'option')
+  .forEach((token) => {
+    if (token.name.startsWith('no-')) {
+      // Store foo:false for --no-foo
+      const positiveName = token.name.slice(3);
+      values[positiveName] = false;
+      delete values[token.name];
+    } else {
+      // Resave value so last one wins if both --foo and --no-foo.
+      values[token.name] = token.value ?? true;
+    }
+  });
 
-const sectioned = new AnyMap({
-  version: 3,
-  sections: [
-    {
-      // 0-base line and column
-      offset: { line: 0, column: 0 },
-      // fooOutput's sourcemap
-      map: {
-        version: 3,
-        sources: ['foo.js'],
-        names: ['foo'],
-        mappings: 'AAAAA',
-      },
-    },
-    {
-      // barOutput's sourcemap will not affect the first line, only the second
-      offset: { line: 1, column: 0 },
-      map: {
-        version: 3,
-        sources: ['bar.js'],
-        names: ['bar'],
-        mappings: 'AAAAA',
-      },
-    },
-  ],
-});
+const color = values.color;
+const logfile = values.logfile ?? 'default.log';
 
-const traced = originalPositionFor(sectioned, {
-  line: 2,
-  column: 0,
-});
-
-assert.deepEqual(traced, {
-  source: 'bar.js',
-  line: 1,
-  column: 0,
-  name: 'bar',
-});
+console.log({ logfile, color });
 ```
 
-## Benchmarks
+Example usage showing negated options, and when an option is used
+multiple ways then last one wins.
 
-```
-node v18.0.0
-
-amp.js.map - 45120 segments
-
-Memory Usage:
-trace-mapping decoded         562400 bytes
-trace-mapping encoded        5706544 bytes
-source-map-js               10717664 bytes
-source-map-0.6.1            17446384 bytes
-source-map-0.8.0             9701757 bytes
-Smallest memory usage is trace-mapping decoded
-
-Init speed:
-trace-mapping:    decoded JSON input x 180 ops/sec ±0.34% (85 runs sampled)
-trace-mapping:    encoded JSON input x 364 ops/sec ±1.77% (89 runs sampled)
-trace-mapping:    decoded Object input x 3,116 ops/sec ±0.50% (96 runs sampled)
-trace-mapping:    encoded Object input x 410 ops/sec ±2.62% (85 runs sampled)
-source-map-js:    encoded Object input x 84.23 ops/sec ±0.91% (73 runs sampled)
-source-map-0.6.1: encoded Object input x 37.21 ops/sec ±2.08% (51 runs sampled)
-Fastest is trace-mapping:    decoded Object input
-
-Trace speed:
-trace-mapping:    decoded originalPositionFor x 3,952,212 ops/sec ±0.17% (98 runs sampled)
-trace-mapping:    encoded originalPositionFor x 3,487,468 ops/sec ±1.58% (90 runs sampled)
-source-map-js:    encoded originalPositionFor x 827,730 ops/sec ±0.78% (97 runs sampled)
-source-map-0.6.1: encoded originalPositionFor x 748,991 ops/sec ±0.53% (94 runs sampled)
-source-map-0.8.0: encoded originalPositionFor x 2,532,894 ops/sec ±0.57% (95 runs sampled)
-Fastest is trace-mapping:    decoded originalPositionFor
-
-
-***
-
-
-babel.min.js.map - 347793 segments
-
-Memory Usage:
-trace-mapping decoded          89832 bytes
-trace-mapping encoded       35474640 bytes
-source-map-js               51257176 bytes
-source-map-0.6.1            63515664 bytes
-source-map-0.8.0            42933752 bytes
-Smallest memory usage is trace-mapping decoded
-
-Init speed:
-trace-mapping:    decoded JSON input x 15.41 ops/sec ±8.65% (34 runs sampled)
-trace-mapping:    encoded JSON input x 28.20 ops/sec ±12.87% (42 runs sampled)
-trace-mapping:    decoded Object input x 964 ops/sec ±0.36% (99 runs sampled)
-trace-mapping:    encoded Object input x 31.77 ops/sec ±13.79% (45 runs sampled)
-source-map-js:    encoded Object input x 6.45 ops/sec ±5.16% (21 runs sampled)
-source-map-0.6.1: encoded Object input x 4.07 ops/sec ±5.24% (15 runs sampled)
-Fastest is trace-mapping:    decoded Object input
-
-Trace speed:
-trace-mapping:    decoded originalPositionFor x 7,183,038 ops/sec ±0.58% (95 runs sampled)
-trace-mapping:    encoded originalPositionFor x 5,192,185 ops/sec ±0.41% (100 runs sampled)
-source-map-js:    encoded originalPositionFor x 4,259,489 ops/sec ±0.79% (94 runs sampled)
-source-map-0.6.1: encoded originalPositionFor x 3,742,629 ops/sec ±0.71% (95 runs sampled)
-source-map-0.8.0: encoded originalPositionFor x 6,270,211 ops/sec ±0.64% (94 runs sampled)
-Fastest is trace-mapping:    decoded originalPositionFor
-
-
-***
-
-
-preact.js.map - 1992 segments
-
-Memory Usage:
-trace-mapping decoded          37128 bytes
-trace-mapping encoded         247280 bytes
-source-map-js                1143536 bytes
-source-map-0.6.1             1290992 bytes
-source-map-0.8.0               96544 bytes
-Smallest memory usage is trace-mapping decoded
-
-Init speed:
-trace-mapping:    decoded JSON input x 3,483 ops/sec ±0.30% (98 runs sampled)
-trace-mapping:    encoded JSON input x 6,092 ops/sec ±0.18% (97 runs sampled)
-trace-mapping:    decoded Object input x 249,076 ops/sec ±0.24% (98 runs sampled)
-trace-mapping:    encoded Object input x 14,555 ops/sec ±0.48% (100 runs sampled)
-source-map-js:    encoded Object input x 2,447 ops/sec ±0.36% (99 runs sampled)
-source-map-0.6.1: encoded Object input x 1,201 ops/sec ±0.57% (96 runs sampled)
-Fastest is trace-mapping:    decoded Object input
-
-Trace speed:
-trace-mapping:    decoded originalPositionFor x 7,620,192 ops/sec ±0.09% (99 runs sampled)
-trace-mapping:    encoded originalPositionFor x 6,872,554 ops/sec ±0.30% (97 runs sampled)
-source-map-js:    encoded originalPositionFor x 2,489,570 ops/sec ±0.35% (94 runs sampled)
-source-map-0.6.1: encoded originalPositionFor x 1,698,633 ops/sec ±0.28% (98 runs sampled)
-source-map-0.8.0: encoded originalPositionFor x 4,015,644 ops/sec ±0.22% (98 runs sampled)
-Fastest is trace-mapping:    decoded originalPositionFor
-
-
-***
-
-
-react.js.map - 5726 segments
-
-Memory Usage:
-trace-mapping decoded          16176 bytes
-trace-mapping encoded         681552 bytes
-source-map-js                2418352 bytes
-source-map-0.6.1             2443672 bytes
-source-map-0.8.0              111768 bytes
-Smallest memory usage is trace-mapping decoded
-
-Init speed:
-trace-mapping:    decoded JSON input x 1,720 ops/sec ±0.34% (98 runs sampled)
-trace-mapping:    encoded JSON input x 4,406 ops/sec ±0.35% (100 runs sampled)
-trace-mapping:    decoded Object input x 92,122 ops/sec ±0.10% (99 runs sampled)
-trace-mapping:    encoded Object input x 5,385 ops/sec ±0.37% (99 runs sampled)
-source-map-js:    encoded Object input x 794 ops/sec ±0.40% (98 runs sampled)
-source-map-0.6.1: encoded Object input x 416 ops/sec ±0.54% (91 runs sampled)
-Fastest is trace-mapping:    decoded Object input
-
-Trace speed:
-trace-mapping:    decoded originalPositionFor x 32,759,519 ops/sec ±0.33% (100 runs sampled)
-trace-mapping:    encoded originalPositionFor x 31,116,306 ops/sec ±0.33% (97 runs sampled)
-source-map-js:    encoded originalPositionFor x 17,458,435 ops/sec ±0.44% (97 runs sampled)
-source-map-0.6.1: encoded originalPositionFor x 12,687,097 ops/sec ±0.43% (95 runs sampled)
-source-map-0.8.0: encoded originalPositionFor x 23,538,275 ops/sec ±0.38% (95 runs sampled)
-Fastest is trace-mapping:    decoded originalPositionFor
+```console
+$ node negate.js
+{ logfile: 'default.log', color: undefined }
+$ node negate.js --no-logfile --no-color
+{ logfile: false, color: false }
+$ node negate.js --logfile=test.log --color
+{ logfile: 'test.log', color: true }
+$ node negate.js --no-logfile --logfile=test.log --color --no-color
+{ logfile: 'test.log', color: false }
 ```
 
-[source-map]: https://www.npmjs.com/package/source-map
+-----
+
+<!-- omit in toc -->
+## Table of Contents
+- [`util.parseArgs([config])`](#utilparseargsconfig)
+- [Scope](#scope)
+- [Version Matchups](#version-matchups)
+- [🚀 Getting Started](#-getting-started)
+- [🙌 Contributing](#-contributing)
+- [💡 `process.mainArgs` Proposal](#-processmainargs-proposal)
+  - [Implementation:](#implementation)
+- [📃 Examples](#-examples)
+- [F.A.Qs](#faqs)
+- [Links & Resources](#links--resources)
+
+-----
+
+## Scope
+
+It is already possible to build great arg parsing modules on top of what Node.js provides; the prickly API is abstracted away by these modules. Thus, process.parseArgs() is not necessarily intended for library authors; it is intended for developers of simple CLI tools, ad-hoc scripts, deployed Node.js applications, and learning materials.
+
+It is exceedingly difficult to provide an API which would both be friendly to these Node.js users while being extensible enough for libraries to build upon. We chose to prioritize these use cases because these are currently not well-served by Node.js' API.
+
+----
+
+## Version Matchups
+
+| Node.js | @pkgjs/parseArgs |
+| -- | -- |
+| [v18.3.0](https://nodejs.org/docs/latest-v18.x/api/util.html#utilparseargsconfig) | [v0.9.1](https://github.com/pkgjs/parseargs/tree/v0.9.1#utilparseargsconfig) |
+| [v16.17.0](https://nodejs.org/dist/latest-v16.x/docs/api/util.html#utilparseargsconfig), [v18.7.0](https://nodejs.org/docs/latest-v18.x/api/util.html#utilparseargsconfig) | [0.10.0](https://github.com/pkgjs/parseargs/tree/v0.10.0#utilparseargsconfig) |
+
+----
+
+## 🚀 Getting Started
+
+1. **Install dependencies.**
+
+   ```bash
+   npm install
+   ```
+
+2. **Open the index.js file and start editing!**
+
+3. **Test your code by calling parseArgs through our test file**
+
+   ```bash
+   npm test
+   ```
+
+----
+
+## 🙌 Contributing
+
+Any person who wants to contribute to the initiative is welcome! Please first read the [Contributing Guide](CONTRIBUTING.md)
+
+Additionally, reading the [`Examples w/ Output`](#-examples-w-output) section of this document will be the best way to familiarize yourself with the target expected behavior for parseArgs() once it is fully implemented.
+
+This package was implemented using [tape](https://www.npmjs.com/package/tape) as its test harness.
+
+----
+
+## 💡 `process.mainArgs` Proposal
+
+> Note: This can be moved forward independently of the `util.parseArgs()` proposal/work.
+
+### Implementation:
+
+```javascript
+process.mainArgs = process.argv.slice(process._exec ? 1 : 2)
+```
+
+----
+
+## 📃 Examples
+
+```js
+const { parseArgs } = require('@pkgjs/parseargs');
+```
+
+```js
+const { parseArgs } = require('@pkgjs/parseargs');
+// specify the options that may be used
+const options = {
+  foo: { type: 'string'},
+  bar: { type: 'boolean' },
+};
+const args = ['--foo=a', '--bar'];
+const { values, positionals } = parseArgs({ args, options });
+// values = { foo: 'a', bar: true }
+// positionals = []
+```
+
+```js
+const { parseArgs } = require('@pkgjs/parseargs');
+// type:string & multiple
+const options = {
+  foo: {
+    type: 'string',
+    multiple: true,
+  },
+};
+const args = ['--foo=a', '--foo', 'b'];
+const { values, positionals } = parseArgs({ args, options });
+// values = { foo: [ 'a', 'b' ] }
+// positionals = []
+```
+
+```js
+const { parseArgs } = require('@pkgjs/parseargs');
+// shorts
+const options = {
+  foo: {
+    short: 'f',
+    type: 'boolean'
+  },
+};
+const args = ['-f', 'b'];
+const { values, positionals } = parseArgs({ args, options, allowPositionals: true });
+// values = { foo: true }
+// positionals = ['b']
+```
+
+```js
+const { parseArgs } = require('@pkgjs/parseargs');
+// unconfigured
+const options = {};
+const args = ['-f', '--foo=a', '--bar', 'b'];
+const { values, positionals } = parseArgs({ strict: false, args, options, allowPositionals: true });
+// values = { f: true, foo: 'a', bar: true }
+// positionals = ['b']
+```
+
+----
+
+## F.A.Qs
+
+- Is `cmd --foo=bar baz` the same as `cmd baz --foo=bar`?
+  - yes
+- Does the parser execute a function?
+  - no
+- Does the parser execute one of several functions, depending on input?
+  - no
+- Can subcommands take options that are distinct from the main command?
+  - no
+- Does it output generated help when no options match?
+  - no
+- Does it generated short usage?  Like: `usage: ls [-ABCFGHLOPRSTUWabcdefghiklmnopqrstuwx1] [file ...]`
+  - no (no usage/help at all)
+- Does the user provide the long usage text?  For each option?  For the whole command?
+  - no
+- Do subcommands (if implemented) have their own usage output?
+  - no
+- Does usage print if the user runs `cmd --help`?
+  - no
+- Does it set `process.exitCode`?
+  - no
+- Does usage print to stderr or stdout?
+  - N/A
+- Does it check types?  (Say, specify that an option is a boolean, number, etc.)
+  - no
+- Can an option have more than one type?  (string or false, for example)
+  - no
+- Can the user define a type?  (Say, `type: path` to call `path.resolve()` on the argument.)
+  - no
+- Does a `--foo=0o22` mean 0, 22, 18, or "0o22"?
+  - `"0o22"`
+- Does it coerce types?
+  - no
+- Does `--no-foo` coerce to `--foo=false`?  For all options?  Only boolean options?
+  - no, it sets `{values:{'no-foo': true}}`
+- Is `--foo` the same as `--foo=true`?  Only for known booleans?  Only at the end?
+  - no, they are not the same. There is no special handling of `true` as a value so it is just another string.
+- Does it read environment variables?  Ie, is `FOO=1 cmd` the same as `cmd --foo=1`?
+  - no
+- Do unknown arguments raise an error?  Are they parsed?  Are they treated as positional arguments?
+  - no, they are parsed, not treated as positionals
+- Does `--` signal the end of options?
+  - yes
+- Is `--` included as a positional?
+  - no
+- Is `program -- foo` the same as `program foo`?
+  - yes, both store `{positionals:['foo']}`
+- Does the API specify whether a `--` was present/relevant?
+  - no
+- Is `-bar` the same as `--bar`?
+  - no, `-bar` is a short option or options, with expansion logic that follows the
+    [Utility Syntax Guidelines in POSIX.1-2017](https://pubs.opengroup.org/onlinepubs/9699919799/basedefs/V1_chap12.html). `-bar` expands to `-b`, `-a`, `-r`.
+- Is `---foo` the same as `--foo`?
+  - no
+  - the first is a long option named `'-foo'`
+  - the second is a long option named `'foo'`
+- Is `-` a positional? ie, `bash some-test.sh | tap -`
+  - yes
+
+## Links & Resources
+
+* [Initial Tooling Issue](https://github.com/nodejs/tooling/issues/19)
+* [Initial Proposal](https://github.com/nodejs/node/pull/35015)
+* [parseArgs Proposal](https://github.com/nodejs/node/pull/42675)
+
+[coverage-image]: https://img.shields.io/nycrc/pkgjs/parseargs
+[coverage-url]: https://github.com/pkgjs/parseargs/blob/main/.nycrc
+[pkgjs/parseargs]: https://github.com/pkgjs/parseargs
