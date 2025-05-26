@@ -1,13 +1,36 @@
-import { FieldValues, ResolverOptions, ResolverResult } from 'react-hook-form';
-import { z } from 'zod';
-export type Resolver = <T extends z.Schema<any, any>>(schema: T, schemaOptions?: Partial<z.ParseParams>, factoryOptions?: {
-    /**
-     * @default async
-     */
-    mode?: 'async' | 'sync';
-    /**
-     * Return the raw input values rather than the parsed values.
-     * @default false
-     */
-    raw?: boolean;
-}) => <TFieldValues extends FieldValues, TContext>(values: TFieldValues, context: TContext | undefined, options: ResolverOptions<TFieldValues>) => Promise<ResolverResult<TFieldValues>>;
+import type { SourceMapSegment } from './sourcemap-segment';
+export interface SourceMapV3 {
+    file?: string | null;
+    names: readonly string[];
+    sourceRoot?: string;
+    sources: readonly (string | null)[];
+    sourcesContent?: readonly (string | null)[];
+    version: 3;
+    ignoreList?: readonly number[];
+}
+export interface EncodedSourceMap extends SourceMapV3 {
+    mappings: string;
+}
+export interface DecodedSourceMap extends SourceMapV3 {
+    mappings: readonly SourceMapSegment[][];
+}
+export interface Pos {
+    line: number;
+    column: number;
+}
+export declare type Mapping = {
+    generated: Pos;
+    source: undefined;
+    original: undefined;
+    name: undefined;
+} | {
+    generated: Pos;
+    source: string;
+    original: Pos;
+    name: string;
+} | {
+    generated: Pos;
+    source: string;
+    original: Pos;
+    name: undefined;
+};
