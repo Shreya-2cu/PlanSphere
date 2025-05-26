@@ -1,2 +1,2 @@
-export * from './computed-types';
+export * from './typeschema';
 export * from './types';

@@ -1,17 +1,19 @@
+import { Static, Type } from '@sinclair/typebox';
+import { TypeCompiler } from '@sinclair/typebox/compiler';
 import { render, screen } from '@testing-library/react';
 import user from '@testing-library/user-event';
-import type { Infer } from '@typeschema/main';
 import React from 'react';
 import { useForm } from 'react-hook-form';
-import { z } from 'zod';
-import { typeschemaResolver } from '..';
+import { typeboxResolver } from '..';
 
-const schema = z.object({
-  username: z.string().min(1, { message: 'username field is required' }),
-  password: z.string().min(1, { message: 'password field is required' }),
+const schema = Type.Object({
+  username: Type.String({ minLength: 1 }),
+  password: Type.String({ minLength: 1 }),
 });
 
-type FormData = Infer<typeof schema> & { unusedProperty: string };
+const typecheck = TypeCompiler.Compile(schema);
+
+type FormData = Static<typeof schema> & { unusedProperty: string };
 
 interface Props {
   onSubmit: (data: FormData) => void;
@@ -23,7 +25,7 @@ function TestComponent({ onSubmit }: Props) {
     handleSubmit,
     formState: { errors },
   } = useForm<FormData>({
-    resolver: typeschemaResolver(schema), // Useful to check TypeScript regressions
+    resolver: typeboxResolver(typecheck), // Useful to check TypeScript regressions
   });
 
   return (
@@ -39,7 +41,7 @@ function TestComponent({ onSubmit }: Props) {
   );
 }
 
-test("form's validation with TypeSchema and TypeScript's integration", async () => {
+test("form's validation with Typebox (with compiler) and TypeScript's integration", async () => {
   const handleSubmit = vi.fn();
   render(<TestComponent onSubmit={handleSubmit} />);
 
@@ -47,7 +49,9 @@ test("form's validation with TypeSchema and TypeScript's integration", async () 
 
   await user.click(screen.getByText(/submit/i));
 
-  expect(screen.getByText(/username field is required/i)).toBeInTheDocument();
-  expect(screen.getByText(/password field is required/i)).toBeInTheDocument();
+  expect(
+    screen.getAllByText(/Expected string length greater or equal to 1/i),
+  ).toHaveLength(2);
+
   expect(handleSubmit).not.toHaveBeenCalled();
 });

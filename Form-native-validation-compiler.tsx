@@ -1,20 +1,20 @@
 import { render, screen } from '@testing-library/react';
 import user from '@testing-library/user-event';
-import type { Infer } from '@typeschema/main';
 import React from 'react';
 import { useForm } from 'react-hook-form';
-import { z } from 'zod';
-import { typeschemaResolver } from '..';
+import { typeboxResolver } from '..';
 
-const USERNAME_REQUIRED_MESSAGE = 'username field is required';
-const PASSWORD_REQUIRED_MESSAGE = 'password field is required';
+import { Static, Type } from '@sinclair/typebox';
+import { TypeCompiler } from '@sinclair/typebox/compiler';
 
-const schema = z.object({
-  username: z.string().min(1, { message: USERNAME_REQUIRED_MESSAGE }),
-  password: z.string().min(1, { message: PASSWORD_REQUIRED_MESSAGE }),
+const schema = Type.Object({
+  username: Type.String({ minLength: 1 }),
+  password: Type.String({ minLength: 1 }),
 });
 
-type FormData = Infer<typeof schema>;
+const typecheck = TypeCompiler.Compile(schema);
+
+type FormData = Static<typeof schema>;
 
 interface Props {
   onSubmit: (data: FormData) => void;
@@ -22,7 +22,7 @@ interface Props {
 
 function TestComponent({ onSubmit }: Props) {
   const { register, handleSubmit } = useForm<FormData>({
-    resolver: typeschemaResolver(schema),
+    resolver: typeboxResolver(typecheck),
     shouldUseNativeValidation: true,
   });
 
@@ -37,7 +37,7 @@ function TestComponent({ onSubmit }: Props) {
   );
 }
 
-test("form's native validation with TypeSchema", async () => {
+test("form's native validation with Typebox (with compiler)", async () => {
   const handleSubmit = vi.fn();
   render(<TestComponent onSubmit={handleSubmit} />);
 
@@ -60,12 +60,16 @@ test("form's native validation with TypeSchema", async () => {
   // username
   usernameField = screen.getByPlaceholderText(/username/i) as HTMLInputElement;
   expect(usernameField.validity.valid).toBe(false);
-  expect(usernameField.validationMessage).toBe(USERNAME_REQUIRED_MESSAGE);
+  expect(usernameField.validationMessage).toBe(
+    'Expected string length greater or equal to 1',
+  );
 
   // password
   passwordField = screen.getByPlaceholderText(/password/i) as HTMLInputElement;
   expect(passwordField.validity.valid).toBe(false);
-  expect(passwordField.validationMessage).toBe(PASSWORD_REQUIRED_MESSAGE);
+  expect(passwordField.validationMessage).toBe(
+    'Expected string length greater or equal to 1',
+  );
 
   await user.type(screen.getByPlaceholderText(/username/i), 'joe');
   await user.type(screen.getByPlaceholderText(/password/i), 'password');
