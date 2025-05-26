@@ -1,19 +1,4 @@
-# @babel/runtime
+# @floating-ui/core
 
-> babel's modular runtime helpers
-
-See our website [@babel/runtime](https://babeljs.io/docs/babel-runtime) for more information.
-
-## Install
-
-Using npm:
-
-```sh
-npm install --save @babel/runtime
-```
-
-or using yarn:
-
-```sh
-yarn add @babel/runtime
-```
+This is the platform-agnostic core of Floating UI, exposing the main
+`computePosition` function but no platform interface logic.
