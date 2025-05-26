@@ -1,4 +1,3 @@
-# @floating-ui/core
+# @floating-ui/react-dom
 
-This is the platform-agnostic core of Floating UI, exposing the main
-`computePosition` function but no platform interface logic.
+This is the library to use Floating UI with React DOM.

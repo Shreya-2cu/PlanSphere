@@ -1,24 +1,24 @@
 {
-  "name": "@floating-ui/core",
-  "version": "1.7.0",
-  "description": "Positioning library for floating elements: tooltips, popovers, dropdowns, and more",
+  "name": "@floating-ui/react-dom",
+  "version": "2.1.2",
+  "description": "Floating UI for React DOM",
   "publishConfig": {
     "access": "public"
   },
-  "main": "./dist/floating-ui.core.umd.js",
-  "module": "./dist/floating-ui.core.esm.js",
-  "unpkg": "./dist/floating-ui.core.umd.min.js",
-  "types": "./dist/floating-ui.core.d.ts",
+  "main": "./dist/floating-ui.react-dom.umd.js",
+  "module": "./dist/floating-ui.react-dom.esm.js",
+  "unpkg": "./dist/floating-ui.react-dom.umd.min.js",
+  "types": "./dist/floating-ui.react-dom.d.ts",
   "exports": {
     "./package.json": "./package.json",
     ".": {
       "import": {
-        "types": "./dist/floating-ui.core.d.mts",
-        "default": "./dist/floating-ui.core.mjs"
+        "types": "./dist/floating-ui.react-dom.d.mts",
+        "default": "./dist/floating-ui.react-dom.mjs"
       },
-      "types": "./dist/floating-ui.core.d.ts",
-      "module": "./dist/floating-ui.core.esm.js",
-      "default": "./dist/floating-ui.core.umd.js"
+      "types": "./dist/floating-ui.react-dom.d.ts",
+      "module": "./dist/floating-ui.react-dom.esm.js",
+      "default": "./dist/floating-ui.react-dom.umd.js"
     }
   },
   "sideEffects": false,
@@ -31,30 +31,44 @@
   "repository": {
     "type": "git",
     "url": "https://github.com/floating-ui/floating-ui.git",
-    "directory": "packages/core"
+    "directory": "packages/react-dom"
   },
-  "homepage": "https://floating-ui.com",
+  "homepage": "https://floating-ui.com/docs/react-dom",
   "keywords": [
     "tooltip",
     "popover",
     "dropdown",
     "menu",
     "popup",
-    "positioning"
+    "positioning",
+    "react",
+    "react-dom"
   ],
+  "peerDependencies": {
+    "react": ">=16.8.0",
+    "react-dom": ">=16.8.0"
+  },
   "dependencies": {
-    "@floating-ui/utils": "^0.2.9"
+    "@floating-ui/dom": "^1.0.0"
   },
   "devDependencies": {
+    "@babel/preset-react": "^7.23.3",
+    "@testing-library/jest-dom": "^6.1.6",
+    "@testing-library/react": "^13.4.0",
+    "@types/react": "^18.2.46",
+    "@types/react-dom": "^18.2.18",
+    "@vitejs/plugin-react": "^4.2.1",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "use-isomorphic-layout-effect": "^1.1.2",
     "config": "0.0.0"
   },
   "scripts": {
-    "test": "vitest run",
-    "test:watch": "vitest watch",
     "lint": "eslint .",
     "format": "prettier --write .",
     "clean": "rimraf dist out-tsc",
-    "dev": "rollup -c -w",
+    "test": "vitest run",
+    "test:watch": "vitest watch",
     "build": "rollup -c",
     "build:api": "build-api --tsc tsconfig.lib.json",
     "publint": "publint",
