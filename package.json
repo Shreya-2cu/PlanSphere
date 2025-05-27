@@ -1,225 +1,93 @@
 {
-    "name": "@types/node",
-    "version": "22.15.18",
-    "description": "TypeScript definitions for node",
-    "homepage": "https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/node",
+    "name": "@types/react-dom",
+    "version": "19.1.5",
+    "description": "TypeScript definitions for react-dom",
+    "homepage": "https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react-dom",
     "license": "MIT",
     "contributors": [
         {
-            "name": "Microsoft TypeScript",
-            "githubUsername": "Microsoft",
-            "url": "https://github.com/Microsoft"
+            "name": "Asana",
+            "url": "https://asana.com"
         },
         {
-            "name": "Alberto Schiabel",
-            "githubUsername": "jkomyno",
-            "url": "https://github.com/jkomyno"
+            "name": "AssureSign",
+            "url": "http://www.assuresign.com"
         },
         {
-            "name": "Alvis HT Tang",
-            "githubUsername": "alvis",
-            "url": "https://github.com/alvis"
+            "name": "Microsoft",
+            "url": "https://microsoft.com"
         },
         {
-            "name": "Andrew Makarov",
-            "githubUsername": "r3nya",
-            "url": "https://github.com/r3nya"
+            "name": "MartynasZilinskas",
+            "githubUsername": "MartynasZilinskas",
+            "url": "https://github.com/MartynasZilinskas"
         },
         {
-            "name": "Benjamin Toueg",
-            "githubUsername": "btoueg",
-            "url": "https://github.com/btoueg"
+            "name": "Josh Rutherford",
+            "githubUsername": "theruther4d",
+            "url": "https://github.com/theruther4d"
         },
         {
-            "name": "Chigozirim C.",
-            "githubUsername": "smac89",
-            "url": "https://github.com/smac89"
-        },
-        {
-            "name": "David Junger",
-            "githubUsername": "touffy",
-            "url": "https://github.com/touffy"
-        },
-        {
-            "name": "Deividas Bakanas",
-            "githubUsername": "DeividasBakanas",
-            "url": "https://github.com/DeividasBakanas"
-        },
-        {
-            "name": "Eugene Y. Q. Shen",
-            "githubUsername": "eyqs",
-            "url": "https://github.com/eyqs"
-        },
-        {
-            "name": "Hannes Magnusson",
-            "githubUsername": "Hannes-Magnusson-CK",
-            "url": "https://github.com/Hannes-Magnusson-CK"
-        },
-        {
-            "name": "Huw",
-            "githubUsername": "hoo29",
-            "url": "https://github.com/hoo29"
-        },
-        {
-            "name": "Kelvin Jin",
-            "githubUsername": "kjin",
-            "url": "https://github.com/kjin"
-        },
-        {
-            "name": "Klaus Meinhardt",
-            "githubUsername": "ajafff",
-            "url": "https://github.com/ajafff"
-        },
-        {
-            "name": "Lishude",
-            "githubUsername": "islishude",
-            "url": "https://github.com/islishude"
-        },
-        {
-            "name": "Mariusz Wiktorczyk",
-            "githubUsername": "mwiktorczyk",
-            "url": "https://github.com/mwiktorczyk"
-        },
-        {
-            "name": "Mohsen Azimi",
-            "githubUsername": "mohsen1",
-            "url": "https://github.com/mohsen1"
-        },
-        {
-            "name": "Nikita Galkin",
-            "githubUsername": "galkin",
-            "url": "https://github.com/galkin"
-        },
-        {
-            "name": "Parambir Singh",
-            "githubUsername": "parambirs",
-            "url": "https://github.com/parambirs"
+            "name": "Jessica Franco",
+            "githubUsername": "Jessidhia",
+            "url": "https://github.com/Jessidhia"
         },
         {
             "name": "Sebastian Silbermann",
             "githubUsername": "eps1lon",
             "url": "https://github.com/eps1lon"
-        },
-        {
-            "name": "Thomas den Hollander",
-            "githubUsername": "ThomasdenH",
-            "url": "https://github.com/ThomasdenH"
-        },
-        {
-            "name": "Wilco Bakker",
-            "githubUsername": "WilcoBakker",
-            "url": "https://github.com/WilcoBakker"
-        },
-        {
-            "name": "wwwy3y3",
-            "githubUsername": "wwwy3y3",
-            "url": "https://github.com/wwwy3y3"
-        },
-        {
-            "name": "Samuel Ainsworth",
-            "githubUsername": "samuela",
-            "url": "https://github.com/samuela"
-        },
-        {
-            "name": "Kyle Uehlein",
-            "githubUsername": "kuehlein",
-            "url": "https://github.com/kuehlein"
-        },
-        {
-            "name": "Thanik Bhongbhibhat",
-            "githubUsername": "bhongy",
-            "url": "https://github.com/bhongy"
-        },
-        {
-            "name": "Marcin Kopacz",
-            "githubUsername": "chyzwar",
-            "url": "https://github.com/chyzwar"
-        },
-        {
-            "name": "Trivikram Kamat",
-            "githubUsername": "trivikr",
-            "url": "https://github.com/trivikr"
-        },
-        {
-            "name": "Junxiao Shi",
-            "githubUsername": "yoursunny",
-            "url": "https://github.com/yoursunny"
-        },
-        {
-            "name": "Ilia Baryshnikov",
-            "githubUsername": "qwelias",
-            "url": "https://github.com/qwelias"
-        },
-        {
-            "name": "ExE Boss",
-            "githubUsername": "ExE-Boss",
-            "url": "https://github.com/ExE-Boss"
-        },
-        {
-            "name": "Piotr Błażejewicz",
-            "githubUsername": "peterblazejewicz",
-            "url": "https://github.com/peterblazejewicz"
-        },
-        {
-            "name": "Anna Henningsen",
-            "githubUsername": "addaleax",
-            "url": "https://github.com/addaleax"
-        },
-        {
-            "name": "Victor Perin",
-            "githubUsername": "victorperin",
-            "url": "https://github.com/victorperin"
-        },
-        {
-            "name": "NodeJS Contributors",
-            "githubUsername": "NodeJS",
-            "url": "https://github.com/NodeJS"
-        },
-        {
-            "name": "Linus Unnebäck",
-            "githubUsername": "LinusU",
-            "url": "https://github.com/LinusU"
-        },
-        {
-            "name": "wafuwafu13",
-            "githubUsername": "wafuwafu13",
-            "url": "https://github.com/wafuwafu13"
-        },
-        {
-            "name": "Matteo Collina",
-            "githubUsername": "mcollina",
-            "url": "https://github.com/mcollina"
-        },
-        {
-            "name": "Dmitry Semigradsky",
-            "githubUsername": "Semigradsky",
-            "url": "https://github.com/Semigradsky"
-        },
-        {
-            "name": "René",
-            "githubUsername": "Renegade334",
-            "url": "https://github.com/Renegade334"
         }
     ],
     "main": "",
     "types": "index.d.ts",
-    "typesVersions": {
-        "<=5.6": {
-            "*": [
-                "ts5.6/*"
-            ]
-        }
+    "exports": {
+        ".": {
+            "types": {
+                "default": "./index.d.ts"
+            }
+        },
+        "./client": {
+            "types": {
+                "default": "./client.d.ts"
+            }
+        },
+        "./canary": {
+            "types": {
+                "default": "./canary.d.ts"
+            }
+        },
+        "./server": {
+            "types": {
+                "default": "./server.d.ts"
+            }
+        },
+        "./static": {
+            "types": {
+                "default": "./static.d.ts"
+            }
+        },
+        "./experimental": {
+            "types": {
+                "default": "./experimental.d.ts"
+            }
+        },
+        "./test-utils": {
+            "types": {
+                "default": "./test-utils/index.d.ts"
+            }
+        },
+        "./package.json": "./package.json"
     },
     "repository": {
         "type": "git",
         "url": "https://github.com/DefinitelyTyped/DefinitelyTyped.git",
-        "directory": "types/node"
+        "directory": "types/react-dom"
     },
     "scripts": {},
-    "dependencies": {
-        "undici-types": "~6.21.0"
+    "dependencies": {},
+    "peerDependencies": {
+        "@types/react": "^19.0.0"
     },
-    "peerDependencies": {},
-    "typesPublisherContentHash": "2b90948f1fb3116c8907f2beaa3f3e5508eb0101dc27013c967a068001011e3e",
+    "typesPublisherContentHash": "8a1684fb26e8b99b1cec59dc73a6f538f51e7fb6c25e0110d94115caf867e8f9",
     "typeScriptVersion": "5.1"
 }

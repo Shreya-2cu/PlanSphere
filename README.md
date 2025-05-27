@@ -1,15 +1,16 @@
 # Installation
-> `npm install --save @types/node`
+> `npm install --save @types/react-dom`
 
 # Summary
-This package contains type definitions for node (https://nodejs.org/).
+This package contains type definitions for react-dom (https://react.dev/).
 
 # Details
-Files were exported from https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/node.
+Files were exported from https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react-dom.
 
 ### Additional Details
- * Last updated: Wed, 14 May 2025 04:37:31 GMT
- * Dependencies: [undici-types](https://npmjs.com/package/undici-types)
+ * Last updated: Tue, 13 May 2025 10:38:36 GMT
+ * Dependencies: none
+ * Peer dependencies: [@types/react](https://npmjs.com/package/@types/react)
 
 # Credits
-These definitions were written by [Microsoft TypeScript](https://github.com/Microsoft), [Alberto Schiabel](https://github.com/jkomyno), [Alvis HT Tang](https://github.com/alvis), [Andrew Makarov](https://github.com/r3nya), [Benjamin Toueg](https://github.com/btoueg), [Chigozirim C.](https://github.com/smac89), [David Junger](https://github.com/touffy), [Deividas Bakanas](https://github.com/DeividasBakanas), [Eugene Y. Q. Shen](https://github.com/eyqs), [Hannes Magnusson](https://github.com/Hannes-Magnusson-CK), [Huw](https://github.com/hoo29), [Kelvin Jin](https://github.com/kjin), [Klaus Meinhardt](https://github.com/ajafff), [Lishude](https://github.com/islishude), [Mariusz Wiktorczyk](https://github.com/mwiktorczyk), [Mohsen Azimi](https://github.com/mohsen1), [Nikita Galkin](https://github.com/galkin), [Parambir Singh](https://github.com/parambirs), [Sebastian Silbermann](https://github.com/eps1lon), [Thomas den Hollander](https://github.com/ThomasdenH), [Wilco Bakker](https://github.com/WilcoBakker), [wwwy3y3](https://github.com/wwwy3y3), [Samuel Ainsworth](https://github.com/samuela), [Kyle Uehlein](https://github.com/kuehlein), [Thanik Bhongbhibhat](https://github.com/bhongy), [Marcin Kopacz](https://github.com/chyzwar), [Trivikram Kamat](https://github.com/trivikr), [Junxiao Shi](https://github.com/yoursunny), [Ilia Baryshnikov](https://github.com/qwelias), [ExE Boss](https://github.com/ExE-Boss), [Piotr Błażejewicz](https://github.com/peterblazejewicz), [Anna Henningsen](https://github.com/addaleax), [Victor Perin](https://github.com/victorperin), [NodeJS Contributors](https://github.com/NodeJS), [Linus Unnebäck](https://github.com/LinusU), [wafuwafu13](https://github.com/wafuwafu13), [Matteo Collina](https://github.com/mcollina), [Dmitry Semigradsky](https://github.com/Semigradsky), and [René](https://github.com/Renegade334).
+These definitions were written by [Asana](https://asana.com), [AssureSign](http://www.assuresign.com), [Microsoft](https://microsoft.com), [MartynasZilinskas](https://github.com/MartynasZilinskas), [Josh Rutherford](https://github.com/theruther4d), [Jessica Franco](https://github.com/Jessidhia), and [Sebastian Silbermann](https://github.com/eps1lon).
