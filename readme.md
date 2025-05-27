@@ -1,139 +1,60 @@
-# quick-lru [![Build Status](https://travis-ci.org/sindresorhus/quick-lru.svg?branch=master)](https://travis-ci.org/sindresorhus/quick-lru) [![Coverage Status](https://coveralls.io/repos/github/sindresorhus/quick-lru/badge.svg?branch=master)](https://coveralls.io/github/sindresorhus/quick-lru?branch=master)
+# ansi-regex
 
-> Simple [“Least Recently Used” (LRU) cache](https://en.m.wikipedia.org/wiki/Cache_replacement_policies#Least_Recently_Used_.28LRU.29)
-
-Useful when you need to cache something and limit memory usage.
-
-Inspired by the [`hashlru` algorithm](https://github.com/dominictarr/hashlru#algorithm), but instead uses [`Map`](https://developer.mozilla.org/en/docs/Web/JavaScript/Reference/Global_Objects/Map) to support keys of any type, not just strings, and values can be `undefined`.
+> Regular expression for matching [ANSI escape codes](https://en.wikipedia.org/wiki/ANSI_escape_code)
 
 ## Install
 
-```
-$ npm install quick-lru
+```sh
+npm install ansi-regex
 ```
 
 ## Usage
 
 ```js
-const QuickLRU = require('quick-lru');
+import ansiRegex from 'ansi-regex';
 
-const lru = new QuickLRU({maxSize: 1000});
-
-lru.set('🦄', '🌈');
-
-lru.has('🦄');
+ansiRegex().test('\u001B[4mcake\u001B[0m');
 //=> true
 
-lru.get('🦄');
-//=> '🌈'
+ansiRegex().test('cake');
+//=> false
+
+'\u001B[4mcake\u001B[0m'.match(ansiRegex());
+//=> ['\u001B[4m', '\u001B[0m']
+
+'\u001B[4mcake\u001B[0m'.match(ansiRegex({onlyFirst: true}));
+//=> ['\u001B[4m']
+
+'\u001B]8;;https://github.com\u0007click\u001B]8;;\u0007'.match(ansiRegex());
+//=> ['\u001B]8;;https://github.com\u0007', '\u001B]8;;\u0007']
 ```
 
 ## API
 
-### new QuickLRU(options?)
+### ansiRegex(options?)
 
-Returns a new instance.
+Returns a regex for matching ANSI escape codes.
 
-### options
+#### options
 
 Type: `object`
 
-#### maxSize
+##### onlyFirst
 
-*Required*\
-Type: `number`
+Type: `boolean`\
+Default: `false` *(Matches any ANSI escape codes in a string)*
 
-The maximum number of items before evicting the least recently used items.
+Match only the first ANSI escape.
 
-#### maxAge
+## FAQ
 
-Type: `number`\
-Default: `Infinity`
+### Why do you test for codes not in the ECMA 48 standard?
 
-The maximum number of milliseconds an item should remain in cache.
-By default maxAge will be Infinity, which means that items will never expire.
+Some of the codes we run as a test are codes that we acquired finding various lists of non-standard or manufacturer specific codes. We test for both standard and non-standard codes, as most of them follow the same or similar format and can be safely matched in strings without the risk of removing actual string content. There are a few non-standard control codes that do not follow the traditional format (i.e. they end in numbers) thus forcing us to exclude them from the test because we cannot reliably match them.
 
-Lazy expiration happens upon the next `write` or `read` call.
+On the historical side, those ECMA standards were established in the early 90's whereas the VT100, for example, was designed in the mid/late 70's. At that point in time, control codes were still pretty ungoverned and engineers used them for a multitude of things, namely to activate hardware ports that may have been proprietary. Somewhere else you see a similar 'anarchy' of codes is in the x86 architecture for processors; there are a ton of "interrupts" that can mean different things on certain brands of processors, most of which have been phased out.
 
-Individual expiration of an item can be specified by the `set(key, value, options)` method.
+## Maintainers
 
-#### onEviction
-
-*Optional*\
-Type: `(key, value) => void`
-
-Called right before an item is evicted from the cache.
-
-Useful for side effects or for items like object URLs that need explicit cleanup (`revokeObjectURL`).
-
-### Instance
-
-The instance is [`iterable`](https://developer.mozilla.org/en/docs/Web/JavaScript/Reference/Iteration_protocols) so you can use it directly in a [`for…of`](https://developer.mozilla.org/en/docs/Web/JavaScript/Reference/Statements/for...of) loop.
-
-Both `key` and `value` can be of any type.
-
-#### .set(key, value, options?)
-
-Set an item. Returns the instance.
-
-Individual expiration of an item can be specified with the `maxAge` option. If not specified, the global `maxAge` value will be used in case it is specified on the constructor, otherwise the item will never expire.
-
-#### .get(key)
-
-Get an item.
-
-#### .has(key)
-
-Check if an item exists.
-
-#### .peek(key)
-
-Get an item without marking it as recently used.
-
-#### .delete(key)
-
-Delete an item.
-
-Returns `true` if the item is removed or `false` if the item doesn't exist.
-
-#### .clear()
-
-Delete all items.
-
-#### .resize(maxSize)
-
-Update the `maxSize`, discarding items as necessary. Insertion order is mostly preserved, though this is not a strong guarantee.
-
-Useful for on-the-fly tuning of cache sizes in live systems.
-
-#### .keys()
-
-Iterable for all the keys.
-
-#### .values()
-
-Iterable for all the values.
-
-#### .entriesAscending()
-
-Iterable for all entries, starting with the oldest (ascending in recency).
-
-#### .entriesDescending()
-
-Iterable for all entries, starting with the newest (descending in recency).
-
-#### .size
-
-The stored item count.
-
----
-
-<div align="center">
-	<b>
-		<a href="https://tidelift.com/subscription/pkg/npm-quick-lru?utm_source=npm-quick-lru&utm_medium=referral&utm_campaign=readme">Get professional support for this package with a Tidelift subscription</a>
-	</b>
-	<br>
-	<sub>
-		Tidelift helps make open source sustainable for maintainers while giving companies<br>assurances about security, maintenance, and licensing for their dependencies.
-	</sub>
-</div>
+- [Sindre Sorhus](https://github.com/sindresorhus)
+- [Josh Junon](https://github.com/qix-)
